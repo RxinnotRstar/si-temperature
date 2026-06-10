@@ -16,7 +16,7 @@ class TemperatureDiff;
  * - C++20 三路比较运算符（<=>）与相等运算符（==），自动生成 !=、<、>、<=、>=
  *
  * - 支持用户定义字面量（_C、_F、_K），同时支持小数和整数
- * 
+ *
  * - 不能用负数赋值，因为不同单位原点不对齐，没法重载一元-运算符
  *
  * - 加减法支持：
@@ -26,7 +26,7 @@ class TemperatureDiff;
  *   2. 温度点 + 温差 = 温度点
  *
  *   3. 温度点 - 温差 = 温度点
- * 
+ *
  *   4. 对于温度点和温差，支持+=、-=
  */
 class Temperature
@@ -112,6 +112,11 @@ public:
     constexpr Temperature operator-(const TemperatureDiff &diff) const;
     constexpr Temperature &operator-=(const TemperatureDiff &diff);
     constexpr Temperature &operator+=(const TemperatureDiff &diff);
+    // 将 double/int 视为摄氏度温差的 +=/-=
+    constexpr Temperature &operator+=(double celsius_diff);
+    constexpr Temperature &operator-=(double celsius_diff);
+    constexpr Temperature &operator+=(int celsius_diff);
+    constexpr Temperature &operator-=(int celsius_diff);
     // 友元声明
     friend constexpr Temperature operator""_C(long double c);
     friend constexpr Temperature operator""_F(long double f);
@@ -128,7 +133,7 @@ public:
  * - C++20 三路比较运算符（<=>）与相等运算符（==），自动生成 !=、<、>、<=、>=
  *
  * - 温差之间的加减法，返回新的温差对象
- * 
+ *
  * - 温差的数乘和数除，返回新的温差对象
  *
  * - 用户字面量（_C_diff、_F_diff）
@@ -343,6 +348,46 @@ inline constexpr Temperature Temperature::operator-(const TemperatureDiff &diff)
 inline constexpr Temperature &Temperature::operator-=(const TemperatureDiff &diff)
 {
     _kelvin -= diff.toKelvin();
+    return *this;
+}
+
+/**
+ * @brief 重载+=运算符，将 double 视为摄氏度温差
+ * @param celsius_diff 摄氏度温差
+ */
+inline constexpr Temperature &Temperature::operator+=(double celsius_diff)
+{
+    _kelvin += celsius_diff;
+    return *this;
+}
+
+/**
+ * @brief 重载-=运算符，将 double 视为摄氏度温差
+ * @param celsius_diff 摄氏度温差
+ */
+inline constexpr Temperature &Temperature::operator-=(double celsius_diff)
+{
+    _kelvin -= celsius_diff;
+    return *this;
+}
+
+/**
+ * @brief 重载+=运算符，将 int 视为摄氏度温差
+ * @param celsius_diff 摄氏度温差
+ */
+inline constexpr Temperature &Temperature::operator+=(int celsius_diff)
+{
+    _kelvin += celsius_diff;
+    return *this;
+}
+
+/**
+ * @brief 重载-=运算符，将 int 视为摄氏度温差
+ * @param celsius_diff 摄氏度温差
+ */
+inline constexpr Temperature &Temperature::operator-=(int celsius_diff)
+{
+    _kelvin -= celsius_diff;
     return *this;
 }
 

@@ -9,10 +9,10 @@ int main()
     Temperature absolute_zero = 0_K;
     Temperature so_cold = -5;
     // Temperature invalid = -5_C; // 温度点不该重载负号，所以没有重载负号。请使用工厂函数 Temperature::fromCelsius(-5) 来创建负温度。或者如果你确定是摄氏度，可以省略单位。
-    std::cout << "水的冰点是" << ice.toCelsius() << " C = " << ice.toKelvin() << " K = " << ice.toFahrenheit() << " F\n"; // 正确输出 0 C, 273.15 K, 32 F
-    std::cout << "水的沸点是" << boiling.toCelsius() << " C = " << boiling.toKelvin() << " K = " << boiling.toFahrenheit() << " F\n"; // 正确输出 100 C, 373.15 K, 212 F
+    std::cout << "水的冰点是" << ice.toCelsius() << " C = " << ice.toKelvin() << " K = " << ice.toFahrenheit() << " F\n";                               // 正确输出 0 C, 273.15 K, 32 F
+    std::cout << "水的沸点是" << boiling.toCelsius() << " C = " << boiling.toKelvin() << " K = " << boiling.toFahrenheit() << " F\n";                   // 正确输出 100 C, 373.15 K, 212 F
     std::cout << "绝对零度是" << absolute_zero.toCelsius() << " C = " << absolute_zero.toKelvin() << " K = " << absolute_zero.toFahrenheit() << " F\n"; // 正确输出 -273.15 C, 0 K, -459.67 F
-    std::cout << "一个很冷的温度是" << so_cold.toCelsius() << " C = " << so_cold.toKelvin() << " K = " << so_cold.toFahrenheit() << " F\n"; // 正确输出 -5 C, 268.15 K, 23 F
+    std::cout << "一个很冷的温度是" << so_cold.toCelsius() << " C = " << so_cold.toKelvin() << " K = " << so_cold.toFahrenheit() << " F\n";             // 正确输出 -5 C, 268.15 K, 23 F
 
     // 温度点 - 温度点 = 温差
     TemperatureDiff diff = boiling - ice;
@@ -33,7 +33,6 @@ int main()
     std::cout << "温度: " << final_temp.toCelsius() << " C\n"; // 正确输出 30
     final_temp -= cooler;
     std::cout << "温度: " << final_temp.toCelsius() << " C\n"; // 正确输出 25
-
 
     // 数乘测试 (diff * scalar)
     TemperatureDiff big_diff = diff * 2.0;
@@ -60,4 +59,22 @@ int main()
     // 温差取负测试
     TemperatureDiff negative_diff = -diff;
     std::cout << "温差的负值: " << negative_diff.toFahrenheit() << " F_diff\n"; // 正确输出 -180
+
+    // Temperature += double（视为摄氏度温差）
+    Temperature t1 = 32_F;
+    t1 += 5.0;
+    std::cout << "32_F += 5.0 = " << t1.toCelsius() << " C\n"; // 正确输出 5 摄氏度
+
+    // Temperature -= double（视为摄氏度温差）
+    t1 -= 10.0;
+    std::cout << "25_C -= 10.0 = " << t1.toCelsius() << " C\n"; // 正确输出 15
+
+    // Temperature += int（视为摄氏度温差）
+    Temperature t2 = 0.0_C;
+    t2 += 3;
+    std::cout << "0_C += 3 = " << t2.toCelsius() << " C\n"; // 正确输出 3
+
+    // Temperature -= int（视为摄氏度温差）
+    t2 -= 8;
+    std::cout << "3_C -= 8 = " << t2.toCelsius() << " C\n"; // 正确输出 -5
 }
