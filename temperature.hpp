@@ -17,7 +17,9 @@ class TemperatureDiff;
  *
  * - C++20 三路比较运算符（<=>）与相等运算符（==），自动生成 !=、<、>、<=、>=
  *
- * - 支持用户定义字面量（_C、_F、_K）
+ * - 支持用户定义字面量（_C、_F、_K），同时支持小数和整数
+ * 
+ * - 不能用负数赋值，因为不同单位原点不对齐，没法重载一元-运算符
  *
  * - 加减法支持：
  *
@@ -26,6 +28,8 @@ class TemperatureDiff;
  *   2. 温度点 + 温差 = 温度点
  *
  *   3. 温度点 - 温差 = 温度点
+ * 
+ *   4. 对于温度点和温差，支持+=、-=
  */
 class Temperature
 {
@@ -43,23 +47,23 @@ private:
 
 public:
     // 默认构造为 0 摄氏度（273.15 K）
-    constexpr Temperature() : _kelvin(273.15f) {}
+    constexpr Temperature() : _kelvin(273.15) {}
     // 摄氏度构造函数，无字面量时视为摄氏度并使用这个函数
-    constexpr Temperature(double celsius) : _kelvin(celsius + 273.15f) {}
+    constexpr Temperature(double celsius) : _kelvin(celsius + 273.15) {}
 
     /**
      * @brief 以摄氏度获取温度
      */
     constexpr double toCelsius() const
     {
-        return _kelvin - 273.15f;
+        return _kelvin - 273.15;
     }
     /**
      * @brief 以华氏度获取温度
      */
     constexpr double toFahrenheit() const
     {
-        return (_kelvin - 273.15f) * 9.0f / 5.0f + 32.0f;
+        return (_kelvin - 273.15) * 9.0 / 5.0 + 32.0;
     }
     /**
      * @brief 以开尔文获取温度
@@ -75,7 +79,7 @@ public:
      */
     static constexpr Temperature fromCelsius(double c)
     {
-        return Temperature(KelvinTag{}, c + 273.15f);
+        return Temperature(KelvinTag{}, c + 273.15);
     }
     /**
      * @brief 从华氏度创建 Temperature 对象
@@ -83,7 +87,7 @@ public:
      */
     static constexpr Temperature fromFahrenheit(double f)
     {
-        return Temperature(KelvinTag{}, (f - 32.0f) * 5.0f / 9.0f + 273.15f);
+        return Temperature(KelvinTag{}, (f - 32.0) * 5.0 / 9.0 + 273.15);
     }
     /**
      * @brief 从开尔文创建 Temperature 对象
@@ -108,6 +112,8 @@ public:
     constexpr TemperatureDiff operator-(const Temperature &other) const;
     constexpr Temperature operator+(const TemperatureDiff &diff) const;
     constexpr Temperature operator-(const TemperatureDiff &diff) const;
+    constexpr Temperature &operator-=(const TemperatureDiff &diff);
+    constexpr Temperature &operator+=(const TemperatureDiff &diff);
     // 友元声明
     friend constexpr Temperature operator""_C(long double c);
     friend constexpr Temperature operator""_F(long double f);
@@ -124,6 +130,8 @@ public:
  * - C++20 三路比较运算符（<=>）与相等运算符（==），自动生成 !=、<、>、<=、>=
  *
  * - 温差之间的加减法，返回新的温差对象
+ * 
+ * - 温差的数乘和数除，返回新的温差对象
  *
  * - 用户字面量（_C_diff、_F_diff）
  */
@@ -157,7 +165,7 @@ public:
      */
     constexpr double toFahrenheit() const
     {
-        return _celsius_diff * 9.0f / 5.0f;
+        return _celsius_diff * 9.0 / 5.0;
     }
     /**
      * @brief 从摄氏度差创建 TemperatureDiff 对象
@@ -173,7 +181,7 @@ public:
      */
     static constexpr TemperatureDiff fromFahrenheit(double d)
     {
-        return TemperatureDiff(d * 5.0f / 9.0f);
+        return TemperatureDiff(d * 5.0 / 9.0);
     }
 
     // C++20 三路比较运算符与相等运算符
@@ -187,15 +195,26 @@ public:
     }
 
     /**
-     * @brief 温差之间的加减法，返回新的温差对象
+     * @brief 温差之间的加法，返回新的温差对象
      * @param o 另一个温差对象
      */
     constexpr TemperatureDiff operator+(const TemperatureDiff &o) const
     {
         return TemperatureDiff(_celsius_diff + o._celsius_diff);
     }
+
     /**
-     * @brief 温差之间的加减法，返回新的温差对象
+     * @brief 重载+=运算符，允许一个温差加上另一个温差
+     * @param o 另一个温差对象
+     */
+    constexpr TemperatureDiff &operator+=(const TemperatureDiff &o)
+    {
+        _celsius_diff += o._celsius_diff;
+        return *this;
+    }
+
+    /**
+     * @brief 温差之间的减法，返回新的温差对象
      * @param o 另一个温差对象
      */
     constexpr TemperatureDiff operator-(const TemperatureDiff &o) const
@@ -203,13 +222,72 @@ public:
         return TemperatureDiff(_celsius_diff - o._celsius_diff);
     }
 
+    /**
+     * @brief 重载-=运算符，允许一个温差减去另一个温差
+     * @param o 另一个温差对象
+     */
+    constexpr TemperatureDiff &operator-=(const TemperatureDiff &o)
+    {
+        _celsius_diff -= o._celsius_diff;
+        return *this;
+    }
+
+    /**
+     * @brief 温差的数乘，返回新的温差对象
+     * @param scalar 乘数
+     */
+    constexpr TemperatureDiff operator*(double scalar) const
+    {
+        return TemperatureDiff(_celsius_diff * scalar);
+    }
+
+    /**
+     * @brief 重载*=运算符，允许温差乘以一个数
+     * @param scalar 乘数
+     */
+    constexpr TemperatureDiff &operator*=(double scalar)
+    {
+        _celsius_diff *= scalar;
+        return *this;
+    }
+
+    /**
+     * @brief 温差的数除，返回新的温差对象
+     * @param scalar 除数
+     */
+    constexpr TemperatureDiff operator/(double scalar) const
+    {
+        return TemperatureDiff(_celsius_diff / scalar);
+    }
+
+    /**
+     * @brief 重载/=运算符，允许温差除以一个数
+     * @param scalar 除数
+     */
+    constexpr TemperatureDiff &operator/=(double scalar)
+    {
+        _celsius_diff /= scalar;
+        return *this;
+    }
+
     // 友元声明
     friend class Temperature;
+    friend constexpr TemperatureDiff operator*(double scalar, const TemperatureDiff &diff);
     friend constexpr TemperatureDiff operator""_C_diff(long double d);
     friend constexpr TemperatureDiff operator""_F_diff(long double d);
 };
 
-// 加减法
+// 基本运算
+
+/**
+ * @brief 数乘温差（支持 scalar * diff 写法）
+ * @param scalar 乘数
+ * @param diff 温差对象
+ */
+inline constexpr TemperatureDiff operator*(double scalar, const TemperatureDiff &diff)
+{
+    return TemperatureDiff::fromCelsius(scalar * diff._celsius_diff);
+}
 
 /**
  * @brief 两温度相减获得温差
@@ -232,6 +310,16 @@ inline constexpr Temperature Temperature::operator+(const TemperatureDiff &diff)
 }
 
 /**
+ * @brief 重载+=运算符，允许一个温度加上一个温度差
+ * @param diff 温差对象
+ */
+inline constexpr Temperature &Temperature::operator+=(const TemperatureDiff &diff)
+{
+    _kelvin += diff.toKelvin();
+    return *this;
+}
+
+/**
  * @brief 温度点减温差得到新温度点
  * @param diff 温差
  * @return 结果温度点对象
@@ -239,6 +327,16 @@ inline constexpr Temperature Temperature::operator+(const TemperatureDiff &diff)
 inline constexpr Temperature Temperature::operator-(const TemperatureDiff &diff) const
 {
     return Temperature(Temperature::KelvinTag{}, this->_kelvin - diff.toKelvin());
+}
+
+/**
+ * @brief 重载-=运算符，允许一个温度减去一个温度差
+ * @param diff 温差对象
+ */
+inline constexpr Temperature &Temperature::operator-=(const TemperatureDiff &diff)
+{
+    _kelvin -= diff.toKelvin();
+    return *this;
 }
 
 // 字面量后缀实现
