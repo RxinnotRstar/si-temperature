@@ -1,6 +1,4 @@
 #include <iostream>
-#include <vector>
-#include <algorithm>
 #include <compare>
 
 // 类声明
@@ -145,7 +143,7 @@ private:
 
 public:
     // 默认构造为 0 摄氏度差
-    constexpr TemperatureDiff() : _celsius_diff(0.0f) {}
+    constexpr TemperatureDiff() : _celsius_diff(0.0) {}
     /**
      * @brief 以摄氏度差获取温差
      */
