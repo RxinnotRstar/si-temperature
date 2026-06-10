@@ -56,4 +56,8 @@ int main()
     TemperatureDiff divide_test = 100.0_C_diff;
     divide_test /= 4.0;
     std::cout << "100_C_diff /= 4.0 = " << divide_test.toCelsius() << " C_diff\n"; // 正确输出 25
+
+    // 温差取负测试
+    TemperatureDiff negative_diff = -diff;
+    std::cout << "温差的负值: " << negative_diff.toFahrenheit() << " F_diff\n"; // 正确输出 -180
 }

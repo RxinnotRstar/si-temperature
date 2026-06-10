@@ -193,6 +193,15 @@ public:
     }
 
     /**
+     * @brief 重载负号，对温差可以取负，返回新的温差对象
+     * @return 取负后的温差对象
+     */
+    constexpr TemperatureDiff operator-() const
+    {
+        return TemperatureDiff(-_celsius_diff);
+    }
+
+    /**
      * @brief 温差之间的加法，返回新的温差对象
      * @param o 另一个温差对象
      */
