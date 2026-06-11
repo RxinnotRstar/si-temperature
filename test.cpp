@@ -77,4 +77,29 @@ int main()
     // Temperature -= int（视为摄氏度温差）
     t2 -= 8;
     std::cout << "3_C -= 8 = " << t2.toCelsius() << " C\n"; // 正确输出 -5
+
+    // 比较测试
+    Temperature temp1 = 5;
+    if(temp1 == 5){
+        std::cout << "temp1 == 5 成立\n"; // 正确输出
+    } else {
+        std::cout << "temp1 == 5 不成立\n";
+    }
+    if(5 == temp1){
+        std::cout << "5 == temp1 成立\n"; // 正确输出
+    } else {
+        std::cout << "5 == temp1 不成立\n";
+    }
+
+    if(2_C < 300_K){
+        std::cout << "2_C < 300_K 成立\n"; // 正确输出
+    } else {
+        std::cout << "2_C < 300_K 不成立\n";
+    }
+
+    if(33_F < 0){
+        std::cout << "33_F < 0 成立\n";
+    } else {
+        std::cout << "33_F < 0 不成立\n"; // 正确输出
+    }
 }

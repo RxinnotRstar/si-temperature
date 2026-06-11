@@ -187,11 +187,12 @@ public:
         return TemperatureDiff(d * 5.0 / 9.0);
     }
 
-    // C++20 三路比较运算符与相等运算符
+    /// @brief C++20 三路比较运算符
     constexpr std::partial_ordering operator<=>(const TemperatureDiff &o) const
     {
         return _celsius_diff <=> o._celsius_diff;
     }
+    /// @brief 相等运算符
     constexpr bool operator==(const TemperatureDiff &o) const
     {
         return _celsius_diff == o._celsius_diff;
