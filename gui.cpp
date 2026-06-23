@@ -91,6 +91,17 @@ AppData g_app;
 // Helpers
 // ============================================================================
 
+/** Return the button text for a unit, respecting ASCII mode. */
+static std::wstring UnitBtnText(int unitIdx, bool asciiOnly)
+{
+    if (asciiOnly) {
+        wchar_t buf[8];
+        swprintf(buf, 8, L"_%c", UNIT_CHARS[unitIdx]);
+        return buf;
+    }
+    return UNIT_TEXTS[unitIdx];
+}
+
 /** Return the degree symbol string for a unit in the given mode. */
 static std::wstring Sym(int unitIdx, bool asciiOnly)
 {
@@ -172,6 +183,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             hwnd, NULL, hinst, NULL);
         SendMessage(g_app.hEntry1, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
 
+        // Row 0: Entry1 + UnitBtn1
         g_app.hUnitBtn1 = CreateWindow(L"BUTTON", L"\u2103",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             MARGIN + ENTRY_W + GAP, y, UNIT_BTN_W, ROW_H,
@@ -274,13 +286,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         // --- Unit button 1 ---
         if (id == 100 && code == BN_CLICKED) {
             g_app.unitIdx1 = (g_app.unitIdx1 + 1) % 3;
-            SetWindowText(g_app.hUnitBtn1, UNIT_TEXTS[g_app.unitIdx1]);
+            bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            std::wstring txt = UnitBtnText(g_app.unitIdx1, ascii);
+            SetWindowText(g_app.hUnitBtn1, txt.c_str());
             return 0;
         }
         // --- Unit button 2 ---
         if (id == 200 && code == BN_CLICKED) {
             g_app.unitIdx2 = (g_app.unitIdx2 + 1) % 3;
-            SetWindowText(g_app.hUnitBtn2, UNIT_TEXTS[g_app.unitIdx2]);
+            bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            std::wstring txt = UnitBtnText(g_app.unitIdx2, ascii);
+            SetWindowText(g_app.hUnitBtn2, txt.c_str());
             return 0;
         }
         // --- Calculate button ---
@@ -296,6 +312,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             // Update calc button text based on language
             bool isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
             SetWindowText(g_app.hCalcBtn, isZh ? L"\u8fd0\u7b97" : L"Calculate");
+            // Update unit button text based on ASCII mode
+            bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            std::wstring txt1 = UnitBtnText(g_app.unitIdx1, ascii);
+            std::wstring txt2 = UnitBtnText(g_app.unitIdx2, ascii);
+            SetWindowText(g_app.hUnitBtn1, txt1.c_str());
+            SetWindowText(g_app.hUnitBtn2, txt2.c_str());
             return 0;
         }
         // --- EN_UPDATE on entry controls (validate on change) ---
