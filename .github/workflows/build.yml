@@ -25,7 +25,7 @@ jobs:
     - name: Compile gui.cpp
       shell: msys2 {0}
       run: |
-        g++ gui.cpp -o temperature.exe -mwindows -std=c++20
+        g++ gui.cpp -o temperature.exe -mwindows -std=c++20 -static
 
     - name: Upload EXE
       uses: actions/upload-artifact@v4
