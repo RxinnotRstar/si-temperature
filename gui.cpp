@@ -49,8 +49,10 @@ constexpr int ENTRY_W = CLIENT_W - MARGIN * 2 - MARGIN - UNIT_BTN_W;  // 204
 constexpr int GAP = 4;
 
 const wchar_t* CLASS_NAME = L"TemperatureCalculator";
-const char UNIT_CHARS[3] = {'C', 'F', 'K'};
-const wchar_t* UNIT_TEXTS[3] = {L"\u2103", L"\u2109", L"K"};
+const wchar_t UNIT_CHARS_W[3] = {L'C', L'F', L'K'};
+// zh: ℃ ℉ K  |  en: °C °F K  |  ascii: _C _F _K
+const wchar_t* UNIT_TEXTS_ZH[3] = {L"\u2103", L"\u2109", L"K"};
+const wchar_t* UNIT_TEXTS_EN[3] = {L"\u00b0C", L"\u00b0F", L"K"};
 
 // ============================================================================
 // Application state
@@ -91,42 +93,49 @@ AppData g_app;
 // Helpers
 // ============================================================================
 
-/** Return the button text for a unit, respecting ASCII mode. */
-static std::wstring UnitBtnText(int unitIdx, bool asciiOnly)
+/** Return the button text for a unit, respecting language/ASCII mode. */
+static std::wstring UnitBtnText(int unitIdx, bool isZh, bool asciiOnly)
 {
     if (asciiOnly) {
         wchar_t buf[8];
-        swprintf(buf, 8, L"_%c", UNIT_CHARS[unitIdx]);
+        swprintf(buf, 8, L"_%c", UNIT_CHARS_W[unitIdx]);
         return buf;
     }
-    return UNIT_TEXTS[unitIdx];
+    if (isZh) {
+        return UNIT_TEXTS_ZH[unitIdx];
+    }
+    return UNIT_TEXTS_EN[unitIdx];
 }
 
-/** Return the degree symbol string for a unit in the given mode. */
-static std::wstring Sym(int unitIdx, bool asciiOnly)
+/** Return the display symbol for a unit in the given mode. */
+/** Return the display symbol for a unit in the given mode. */
+static std::wstring Sym(int unitIdx, bool isZh, bool asciiOnly)
 {
     if (asciiOnly) {
         wchar_t buf[8];
-        swprintf(buf, 8, L"_%c", UNIT_CHARS[unitIdx]);
+        swprintf(buf, 8, L"_%c", UNIT_CHARS_W[unitIdx]);
         return buf;
     }
-    return UNIT_TEXTS[unitIdx];
+    if (isZh) {
+        return UNIT_TEXTS_ZH[unitIdx];
+    }
+    return UNIT_TEXTS_EN[unitIdx];
 }
 
 /** Format a temperature line: "XX.X sym(tag)" */
-static std::wstring FormatTempLine(double value, int unitIdx, bool asciiOnly, const wchar_t* tag)
+static std::wstring FormatTempLine(double value, int unitIdx, bool isZh, bool asciiOnly, const wchar_t* tag)
 {
     wchar_t buf[64];
-    std::wstring sym = Sym(unitIdx, asciiOnly);
+    std::wstring sym = Sym(unitIdx, isZh, asciiOnly);
     swprintf(buf, 64, L"%.1f %s%s", value, sym.c_str(), tag);
     return buf;
 }
 
 /** Format a difference value: "XX.X sym" */
-static std::wstring FormatDiffVal(double value, int unitIdx, bool asciiOnly)
+static std::wstring FormatDiffVal(double value, int unitIdx, bool isZh, bool asciiOnly)
 {
     wchar_t buf[32];
-    std::wstring sym = Sym(unitIdx, asciiOnly);
+    std::wstring sym = Sym(unitIdx, isZh, asciiOnly);
     swprintf(buf, 32, L"%.1f %s", value, sym.c_str());
     return buf;
 }
@@ -183,8 +192,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             hwnd, NULL, hinst, NULL);
         SendMessage(g_app.hEntry1, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
 
-        // Row 0: Entry1 + UnitBtn1
-        g_app.hUnitBtn1 = CreateWindow(L"BUTTON", L"\u2103",
+        g_app.hUnitBtn1 = CreateWindow(L"BUTTON", UNIT_TEXTS_ZH[0],
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             MARGIN + ENTRY_W + GAP, y, UNIT_BTN_W, ROW_H,
             hwnd, (HMENU)100, hinst, NULL);
@@ -199,7 +207,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             hwnd, NULL, hinst, NULL);
         SendMessage(g_app.hEntry2, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
 
-        g_app.hUnitBtn2 = CreateWindow(L"BUTTON", L"\u2103",
+        g_app.hUnitBtn2 = CreateWindow(L"BUTTON", UNIT_TEXTS_ZH[0],
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             MARGIN + ENTRY_W + GAP, y, UNIT_BTN_W, ROW_H,
             hwnd, (HMENU)200, hinst, NULL);
@@ -286,16 +294,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         // --- Unit button 1 ---
         if (id == 100 && code == BN_CLICKED) {
             g_app.unitIdx1 = (g_app.unitIdx1 + 1) % 3;
+            bool isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
-            std::wstring txt = UnitBtnText(g_app.unitIdx1, ascii);
+            std::wstring txt = UnitBtnText(g_app.unitIdx1, isZh, ascii);
             SetWindowText(g_app.hUnitBtn1, txt.c_str());
             return 0;
         }
         // --- Unit button 2 ---
         if (id == 200 && code == BN_CLICKED) {
             g_app.unitIdx2 = (g_app.unitIdx2 + 1) % 3;
+            bool isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
-            std::wstring txt = UnitBtnText(g_app.unitIdx2, ascii);
+            std::wstring txt = UnitBtnText(g_app.unitIdx2, isZh, ascii);
             SetWindowText(g_app.hUnitBtn2, txt.c_str());
             return 0;
         }
@@ -312,10 +322,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             // Update calc button text based on language
             bool isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
             SetWindowText(g_app.hCalcBtn, isZh ? L"\u8fd0\u7b97" : L"Calculate");
-            // Update unit button text based on ASCII mode
+            // Update unit button text based on language/ASCII mode
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
-            std::wstring txt1 = UnitBtnText(g_app.unitIdx1, ascii);
-            std::wstring txt2 = UnitBtnText(g_app.unitIdx2, ascii);
+            std::wstring txt1 = UnitBtnText(g_app.unitIdx1, isZh, ascii);
+            std::wstring txt2 = UnitBtnText(g_app.unitIdx2, isZh, ascii);
             SetWindowText(g_app.hUnitBtn1, txt1.c_str());
             SetWindowText(g_app.hUnitBtn2, txt2.c_str());
             return 0;
@@ -467,8 +477,8 @@ void Calculate(HWND hwnd)
         tag2 = isZh ? L"\uff08\u66f4\u5927\uff09" : L" (Bigger)";
     }
 
-    std::wstring line1 = FormatTempLine(v1, g_app.unitIdx1, ascii, tag1.c_str());
-    std::wstring line2 = FormatTempLine(v2, g_app.unitIdx2, ascii, tag2.c_str());
+    std::wstring line1 = FormatTempLine(v1, g_app.unitIdx1, isZh, ascii, tag1.c_str());
+    std::wstring line2 = FormatTempLine(v2, g_app.unitIdx2, isZh, ascii, tag2.c_str());
 
     // Difference
     double diffC = std::abs(c1 - c2);
@@ -485,9 +495,9 @@ void Calculate(HWND hwnd)
     }
 
     std::wstring diffLine =
-        FormatDiffVal(diffC, 0, ascii) + L" / " +
-        FormatDiffVal(diffF, 1, ascii) + L" / " +
-        FormatDiffVal(diffK, 2, ascii);
+        FormatDiffVal(diffC, 0, isZh, ascii) + L" / " +
+        FormatDiffVal(diffF, 1, isZh, ascii) + L" / " +
+        FormatDiffVal(diffK, 2, isZh, ascii);
 
     std::wstring output = line1 + L"\r\n" + line2 + L"\r\n\r\n" +
                           diffLabel + L"\r\n" + diffLine;
