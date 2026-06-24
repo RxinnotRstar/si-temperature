@@ -337,7 +337,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             // After changing lang/ascii, revert to startup text
             g_app.calculated = false;
             g_app.autoCalc = false;
-            ShowStartupText(hwnd);
 
             bool isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
@@ -351,8 +350,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     EnableWindow(g_app.hRadioZh, FALSE);
                     EnableWindow(g_app.hRadioEn, FALSE);
                 } else {
-                    bool zh = g_app.savedLangZh;
-                    if (zh) {
+                    if (g_app.savedLangZh) {
                         SendMessage(g_app.hRadioZh, BM_SETCHECK, BST_CHECKED, 0);
                         SendMessage(g_app.hRadioEn, BM_SETCHECK, BST_UNCHECKED, 0);
                     } else {
@@ -362,6 +360,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     EnableWindow(g_app.hRadioZh, TRUE);
                     EnableWindow(g_app.hRadioEn, TRUE);
                 }
+                // Re-read after forced switch
                 isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
                 ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
             }
@@ -371,6 +370,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             std::wstring txt2 = UnitBtnText(g_app.unitIdx2, isZh, ascii);
             SetWindowText(g_app.hUnitBtn1, txt1.c_str());
             SetWindowText(g_app.hUnitBtn2, txt2.c_str());
+
+            // Show startup AFTER all state changes
+            ShowStartupText(hwnd);
             return 0;
         }
         // --- EN_UPDATE on entry controls (validate on change) ---
@@ -469,6 +471,13 @@ LRESULT CALLBACK NumberEditProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 LRESULT CALLBACK UnitBtnProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     WNDPROC orig = (hwnd == g_app.hUnitBtn1) ? g_app.origBtnProc1 : g_app.origBtnProc2;
+
+    if (uMsg == WM_GETDLGCODE) {
+        // Remove DLGC_DEFPUSHBUTTON so IsDialogMessage won't turn Enter into BN_CLICKED
+        LRESULT code = CallWindowProc(orig, hwnd, uMsg, wParam, lParam);
+        code &= ~DLGC_DEFPUSHBUTTON;
+        return code;
+    }
 
     if (uMsg == WM_KEYDOWN && wParam == VK_RETURN) {
         SetFocus(g_app.hEntry1);
@@ -639,8 +648,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     // Message loop
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        if (!IsDialogMessage(hwnd, &msg)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
     }
 
     return (int)msg.wParam;
