@@ -34,6 +34,7 @@
 // ============================================================================
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK NumberEditProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK UnitBtnProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void Calculate(HWND hwnd);
 void ShowStartupText(HWND hwnd);
 
@@ -68,10 +69,14 @@ struct AppData {
     int  unitIdx1;       // 0=C, 1=F, 2=K
     int  unitIdx2;
     bool calculated;     // whether user has pressed Calculate
+    bool autoCalc;       // auto-recalculate on text/unit change after first manual calc
+    bool savedLangZh;    // language before ASCII was ticked
 
     // Subclassing
     WNDPROC origEntryProc1;
     WNDPROC origEntryProc2;
+    WNDPROC origBtnProc1;
+    WNDPROC origBtnProc2;
 
     // Fonts
     HFONT hFontResult;   // Consolas 10
@@ -192,7 +197,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         SendMessage(g_app.hEntry1, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
 
         g_app.hUnitBtn1 = CreateWindow(L"BUTTON", UNIT_TEXTS_ZH[0],
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP,
             MARGIN + ENTRY_W + GAP, y, UNIT_BTN_W, ROW_H,
             hwnd, (HMENU)100, hinst, NULL);
         SendMessage(g_app.hUnitBtn1, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
@@ -207,7 +212,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         SendMessage(g_app.hEntry2, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
 
         g_app.hUnitBtn2 = CreateWindow(L"BUTTON", UNIT_TEXTS_ZH[0],
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP,
             MARGIN + ENTRY_W + GAP, y, UNIT_BTN_W, ROW_H,
             hwnd, (HMENU)200, hinst, NULL);
         SendMessage(g_app.hUnitBtn2, WM_SETFONT, (WPARAM)g_app.hFontUI, TRUE);
@@ -269,10 +274,22 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         g_app.origEntryProc2 = (WNDPROC)SetWindowLongPtr(g_app.hEntry2,
             GWLP_WNDPROC, (LONG_PTR)NumberEditProc);
 
+        // -- Subclass unit buttons to intercept Enter --
+        g_app.origBtnProc1 = (WNDPROC)SetWindowLongPtr(g_app.hUnitBtn1,
+            GWLP_WNDPROC, (LONG_PTR)UnitBtnProc);
+        g_app.origBtnProc2 = (WNDPROC)SetWindowLongPtr(g_app.hUnitBtn2,
+            GWLP_WNDPROC, (LONG_PTR)UnitBtnProc);
+
+        // -- Remove TabStop from calc button (not in the cycle) --
+        SetWindowLongPtr(g_app.hCalcBtn, GWL_STYLE,
+            GetWindowLongPtr(g_app.hCalcBtn, GWL_STYLE) & ~WS_TABSTOP);
+
         // -- Initial state --
         g_app.unitIdx1 = 0;
         g_app.unitIdx2 = 0;
         g_app.calculated = false;
+        g_app.autoCalc = false;
+        g_app.savedLangZh = true;
         g_app.updating1 = false;
         g_app.updating2 = false;
 
@@ -297,6 +314,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
             std::wstring txt = UnitBtnText(g_app.unitIdx1, isZh, ascii);
             SetWindowText(g_app.hUnitBtn1, txt.c_str());
+            if (g_app.autoCalc) Calculate(hwnd);
             return 0;
         }
         // --- Unit button 2 ---
@@ -306,6 +324,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
             std::wstring txt = UnitBtnText(g_app.unitIdx2, isZh, ascii);
             SetWindowText(g_app.hUnitBtn2, txt.c_str());
+            if (g_app.autoCalc) Calculate(hwnd);
             return 0;
         }
         // --- Calculate button ---
@@ -317,12 +336,37 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         if ((id >= 400 && id <= 402) && code == BN_CLICKED) {
             // After changing lang/ascii, revert to startup text
             g_app.calculated = false;
+            g_app.autoCalc = false;
             ShowStartupText(hwnd);
-            // Update calc button text based on language
+
             bool isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
-            SetWindowText(g_app.hCalcBtn, isZh ? L"\u8fd0\u7b97" : L"Calculate");
-            // Update unit button text based on language/ASCII mode
             bool ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
+
+            // --- ASCII checkbox: lock EN and grey radio buttons ---
+            if (id == 402) {
+                if (ascii) {
+                    g_app.savedLangZh = isZh;
+                    SendMessage(g_app.hRadioEn, BM_SETCHECK, BST_CHECKED, 0);
+                    SendMessage(g_app.hRadioZh, BM_SETCHECK, BST_UNCHECKED, 0);
+                    EnableWindow(g_app.hRadioZh, FALSE);
+                    EnableWindow(g_app.hRadioEn, FALSE);
+                } else {
+                    bool zh = g_app.savedLangZh;
+                    if (zh) {
+                        SendMessage(g_app.hRadioZh, BM_SETCHECK, BST_CHECKED, 0);
+                        SendMessage(g_app.hRadioEn, BM_SETCHECK, BST_UNCHECKED, 0);
+                    } else {
+                        SendMessage(g_app.hRadioEn, BM_SETCHECK, BST_CHECKED, 0);
+                        SendMessage(g_app.hRadioZh, BM_SETCHECK, BST_UNCHECKED, 0);
+                    }
+                    EnableWindow(g_app.hRadioZh, TRUE);
+                    EnableWindow(g_app.hRadioEn, TRUE);
+                }
+                isZh = (SendMessage(g_app.hRadioZh, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                ascii = (SendMessage(g_app.hCheckAscii, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            }
+
+            SetWindowText(g_app.hCalcBtn, isZh ? L"\u8fd0\u7b97" : L"Calculate");
             std::wstring txt1 = UnitBtnText(g_app.unitIdx1, isZh, ascii);
             std::wstring txt2 = UnitBtnText(g_app.unitIdx2, isZh, ascii);
             SetWindowText(g_app.hUnitBtn1, txt1.c_str());
@@ -350,6 +394,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     guard = false;
                 } else {
                     lastValid = text;
+                    // Auto-recalculate after first manual calculation
+                    if (g_app.autoCalc) {
+                        int lenOther = GetWindowTextLengthW(is1 ? g_app.hEntry2 : g_app.hEntry1);
+                        if (lenOther > 0) Calculate(GetParent(hEntry));
+                    }
                 }
                 return 0;
             }
@@ -409,6 +458,21 @@ LRESULT CALLBACK NumberEditProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             return CallWindowProc(orig, hwnd, uMsg, wParam, lParam);
         }
         return 0;  // block
+    }
+
+    return CallWindowProc(orig, hwnd, uMsg, wParam, lParam);
+}
+
+// ============================================================================
+// Subclassed button proc — Enter jumps to entry1
+// ============================================================================
+LRESULT CALLBACK UnitBtnProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    WNDPROC orig = (hwnd == g_app.hUnitBtn1) ? g_app.origBtnProc1 : g_app.origBtnProc2;
+
+    if (uMsg == WM_KEYDOWN && wParam == VK_RETURN) {
+        SetFocus(g_app.hEntry1);
+        return 0;
     }
 
     return CallWindowProc(orig, hwnd, uMsg, wParam, lParam);
@@ -503,6 +567,7 @@ void Calculate(HWND hwnd)
 
     SetWindowTextW(g_app.hResult, output.c_str());
     g_app.calculated = true;
+    g_app.autoCalc = true;
 }
 
 // ============================================================================
