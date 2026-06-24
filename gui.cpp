@@ -98,7 +98,7 @@ static std::wstring UnitBtnText(int unitIdx, bool isZh, bool asciiOnly)
 {
     if (asciiOnly) {
         wchar_t buf[8];
-        swprintf(buf, 8, L"_%c", UNIT_CHARS_W[unitIdx]);
+        swprintf(buf, 8, L"_%lc", UNIT_CHARS_W[unitIdx]);
         return buf;
     }
     if (isZh) {
@@ -108,12 +108,11 @@ static std::wstring UnitBtnText(int unitIdx, bool isZh, bool asciiOnly)
 }
 
 /** Return the display symbol for a unit in the given mode. */
-/** Return the display symbol for a unit in the given mode. */
 static std::wstring Sym(int unitIdx, bool isZh, bool asciiOnly)
 {
     if (asciiOnly) {
         wchar_t buf[8];
-        swprintf(buf, 8, L"_%c", UNIT_CHARS_W[unitIdx]);
+        swprintf(buf, 8, L"_%lc", UNIT_CHARS_W[unitIdx]);
         return buf;
     }
     if (isZh) {
@@ -127,7 +126,7 @@ static std::wstring FormatTempLine(double value, int unitIdx, bool isZh, bool as
 {
     wchar_t buf[64];
     std::wstring sym = Sym(unitIdx, isZh, asciiOnly);
-    swprintf(buf, 64, L"%.1f %s%s", value, sym.c_str(), tag);
+    swprintf(buf, 64, L"%.1f %ls%ls", value, sym.c_str(), tag);
     return buf;
 }
 
@@ -136,7 +135,7 @@ static std::wstring FormatDiffVal(double value, int unitIdx, bool isZh, bool asc
 {
     wchar_t buf[32];
     std::wstring sym = Sym(unitIdx, isZh, asciiOnly);
-    swprintf(buf, 32, L"%.1f %s", value, sym.c_str());
+    swprintf(buf, 32, L"%.1f %ls", value, sym.c_str());
     return buf;
 }
 
